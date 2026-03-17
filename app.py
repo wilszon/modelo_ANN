@@ -115,12 +115,8 @@ if st.button("🔍 Predecir Riesgo", use_container_width=True, type="primary"):
 
     p_alto, p_medio, p_bajo = float(probs[0]), float(probs[1]), float(probs[2])
 
-    if p_alto >= umbral_alto:
-        pred_idx = 0
-    elif p_bajo >= umbral_bajo:
-        pred_idx = 2
-    else:
-        pred_idx = 1
+    # Simplemente toma la clase con mayor probabilidad
+    pred_idx = int(np.argmax([p_alto, p_medio, p_bajo]))
 
     label = LABEL_MAP[pred_idx]
     color = COLOR_MAP[pred_idx]
