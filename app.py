@@ -97,15 +97,6 @@ with col2:
 
 st.divider()
 
-# ── Umbral de sensibilidad ────────────────────────────────────────────────────
-with st.expander("⚙️ Ajuste de sensibilidad (avanzado)"):
-    st.markdown(
-        "Por defecto el modelo elige la clase con mayor probabilidad. "
-        "Puedes bajar el umbral para que **Alto** o **Bajo** riesgo se activen más fácilmente."
-    )
-    umbral_alto = st.slider("Umbral mínimo para 🔴 Alto Riesgo",  0.10, 0.60, 0.30, 0.01)
-    umbral_bajo = st.slider("Umbral mínimo para 🟢 Bajo Riesgo",  0.10, 0.60, 0.30, 0.01)
-
 # ── Predicción ───────────────────────────────────────────────────────────────
 if st.button("🔍 Predecir Riesgo", use_container_width=True, type="primary"):
 
