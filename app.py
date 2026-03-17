@@ -22,29 +22,54 @@ def cargar_modelos():
 
 label_encoders, pca, scaler, model = cargar_modelos()
 
-# ── Opciones categóricas (extraídas del notebook) ────────────────────────────
-CREDIT_MIX_OPTIONS      = ["Bad", "Good", "Standard"]
-PAYMENT_MIN_OPTIONS     = ["NM", "No", "Yes"]
-
-# Features seleccionadas por SelectKBest (orden del notebook)
-# Num_Bank_Accounts, Num_Credit_Card, Interest_Rate, Delay_from_due_date,
-# Num_of_Delayed_Payment, Num_Credit_Inquiries, Credit_Mix,
-# Outstanding_Debt, Credit_History_Age, Payment_of_Min_Amount
-SELECTED_FEATURES = [
-    "Num_Bank_Accounts",
-    "Num_Credit_Card",
-    "Interest_Rate",
-    "Delay_from_due_date",
-    "Num_of_Delayed_Payment",
-    "Num_Credit_Inquiries",
-    "Credit_Mix",
-    "Outstanding_Debt",
-    "Credit_History_Age",
-    "Payment_of_Min_Amount",
-]
+# ── Opciones categóricas ─────────────────────────────────────────────────────
+CREDIT_MIX_OPTIONS  = ["Bad", "Good", "Standard"]
+PAYMENT_MIN_OPTIONS = ["NM", "No", "Yes"]
 
 LABEL_MAP = {0: "🔴 Alto Riesgo", 1: "🟡 Riesgo Medio", 2: "🟢 Bajo Riesgo"}
 COLOR_MAP  = {0: "#FF4B4B",        1: "#FFA500",         2: "#21C354"}
+
+RECOMENDACIONES = {
+    0: {
+        "icono":  "🚨",
+        "titulo": "Acción urgente requerida",
+        "color":  "#FF4B4B",
+        "puntos": [
+            "Reducir inmediatamente los días de retraso en pagos — cada día adicional deteriora el historial.",
+            "Evitar nuevas solicitudes de crédito por al menos 6 meses para no acumular más consultas.",
+            "Pagar las deudas pendientes priorizando las de mayor tasa de interés.",
+            "Cambiar el hábito de pago: al menos cubrir el monto mínimo mensual sin falta.",
+            "Reducir el número de cuentas bancarias activas si supera las necesarias.",
+            "Considerar asesoría financiera profesional para reestructurar las obligaciones actuales.",
+        ],
+    },
+    1: {
+        "icono":  "⚠️",
+        "titulo": "Hay margen de mejora",
+        "color":  "#FFA500",
+        "puntos": [
+            "Mantener los pagos al día: evitar cualquier retraso adicional para mejorar la categoría.",
+            "Intentar reducir la deuda pendiente al menos un 20% en los próximos 3 meses.",
+            "Mejorar el mix crediticio combinando diferentes tipos de productos financieros responsablemente.",
+            "Limitar las consultas de crédito únicamente a las estrictamente necesarias.",
+            "Aumentar la antigüedad del historial manteniendo cuentas activas con buen comportamiento.",
+            "Revisar si el número de tarjetas de crédito es manejable y cerrar las que no se usen.",
+        ],
+    },
+    2: {
+        "icono":  "✅",
+        "titulo": "Perfil crediticio saludable",
+        "color":  "#21C354",
+        "puntos": [
+            "Mantener el buen comportamiento de pago — la consistencia es clave para conservar este perfil.",
+            "Continuar diversificando el mix crediticio para fortalecer aún más el historial.",
+            "Aprovechar la buena calificación para negociar mejores tasas de interés con entidades financieras.",
+            "Mantener la deuda pendiente por debajo del 30% del límite de crédito disponible.",
+            "Evitar abrir muchas cuentas nuevas al mismo tiempo para no generar múltiples consultas.",
+            "Considerar productos de ahorro o inversión para optimizar el capital disponible.",
+        ],
+    },
+}
 
 # ── Interfaz ─────────────────────────────────────────────────────────────────
 st.title("💳 Predictor de Riesgo Crediticio")
@@ -56,75 +81,108 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📊 Datos Financieros")
-    num_bank_accounts      = st.number_input("N° Cuentas Bancarias",          min_value=0.0,  max_value=20.0,  value=3.0,   step=0.5)
-    num_credit_card        = st.number_input("N° Tarjetas de Crédito",        min_value=0.0,  max_value=15.0,  value=3.0,   step=0.5)
-    interest_rate          = st.number_input("Tasa de Interés (%)",           min_value=1,    max_value=40,    value=14)
-    delay_from_due_date    = st.number_input("Días de Retraso en Pagos",      min_value=-5.0, max_value=70.0,  value=10.0,  step=0.25)
-    num_of_delayed_payment = st.number_input("N° Pagos Atrasados",            min_value=0.0,  max_value=30.0,  value=8.0,   step=0.25)
+    num_bank_accounts      = st.number_input("N° Cuentas Bancarias",        min_value=0, max_value=20,   value=3,   step=1)
+    num_credit_card        = st.number_input("N° Tarjetas de Crédito",      min_value=0, max_value=15,   value=3,   step=1)
+    interest_rate          = st.number_input("Tasa de Interés (%)",         min_value=1, max_value=40,   value=14,  step=1)
+    delay_from_due_date    = st.number_input("Días de Retraso en Pagos",    min_value=0, max_value=70,   value=10,  step=1)
+    num_of_delayed_payment = st.number_input("N° Pagos Atrasados",          min_value=0, max_value=30,   value=8,   step=1)
 
 with col2:
     st.subheader("📋 Historial Crediticio")
-    num_credit_inquiries   = st.number_input("N° Consultas de Crédito",       min_value=0.0,  max_value=20.0,  value=4.0,   step=0.25)
-    credit_mix             = st.selectbox("Tipo de Mix Crediticio",           CREDIT_MIX_OPTIONS)
-    outstanding_debt       = st.number_input("Deuda Pendiente (USD)",         min_value=0.0,  max_value=6000.0, value=800.0, step=10.0)
-    credit_history_age     = st.number_input("Antigüedad Historial (años)",   min_value=0.0,  max_value=40.0,  value=15.0,  step=0.1, format="%.2f")
-    payment_of_min_amount  = st.selectbox("¿Paga monto mínimo?",             PAYMENT_MIN_OPTIONS)
+    num_credit_inquiries  = st.number_input("N° Consultas de Crédito",      min_value=0, max_value=20,   value=4,   step=1)
+    credit_mix            = st.selectbox("Tipo de Mix Crediticio",          CREDIT_MIX_OPTIONS)
+    outstanding_debt      = st.number_input("Deuda Pendiente (USD)",        min_value=0, max_value=6000, value=800, step=50)
+    credit_history_age    = st.number_input("Antigüedad Historial (años)",  min_value=0, max_value=40,   value=15,  step=1)
+    payment_of_min_amount = st.selectbox("¿Paga monto mínimo?",            PAYMENT_MIN_OPTIONS)
 
 st.divider()
+
+# ── Umbral de sensibilidad ────────────────────────────────────────────────────
+with st.expander("⚙️ Ajuste de sensibilidad (avanzado)"):
+    st.markdown(
+        "Por defecto el modelo elige la clase con mayor probabilidad. "
+        "Puedes bajar el umbral para que **Alto** o **Bajo** riesgo se activen más fácilmente."
+    )
+    umbral_alto = st.slider("Umbral mínimo para 🔴 Alto Riesgo",  0.10, 0.60, 0.30, 0.01)
+    umbral_bajo = st.slider("Umbral mínimo para 🟢 Bajo Riesgo",  0.10, 0.60, 0.30, 0.01)
 
 # ── Predicción ───────────────────────────────────────────────────────────────
 if st.button("🔍 Predecir Riesgo", use_container_width=True, type="primary"):
 
-    # 1) Codificar variables categóricas
     credit_mix_enc = label_encoders["Credit_Mix"].transform([credit_mix])[0]
     payment_enc    = label_encoders["Payment_of_Min_Amount"].transform([payment_of_min_amount])[0]
 
-    # 2) Armar fila con las 10 features seleccionadas (mismo orden)
     row = np.array([[
-        num_bank_accounts,
-        num_credit_card,
-        interest_rate,
-        delay_from_due_date,
-        num_of_delayed_payment,
-        num_credit_inquiries,
-        credit_mix_enc,
-        outstanding_debt,
-        credit_history_age,
-        payment_enc,
+        num_bank_accounts, num_credit_card, interest_rate,
+        delay_from_due_date, num_of_delayed_payment, num_credit_inquiries,
+        credit_mix_enc, outstanding_debt, credit_history_age, payment_enc,
     ]])
 
-    # 3) PCA (5 componentes)
-    X_pca = pca.transform(row)
-
-    # 4) MinMax Scaler
+    X_pca    = pca.transform(row)
     X_scaled = scaler.transform(X_pca)
-
-    # 5) Predicción
     probs    = model.predict(X_scaled, verbose=0)[0]
-    pred_idx = int(np.argmax(probs))
 
-    # ── Resultados ────────────────────────────────────────────────────────────
-    st.subheader("📈 Resultado")
+    p_alto, p_medio, p_bajo = float(probs[0]), float(probs[1]), float(probs[2])
+
+    if p_alto >= umbral_alto:
+        pred_idx = 0
+    elif p_bajo >= umbral_bajo:
+        pred_idx = 2
+    else:
+        pred_idx = 1
 
     label = LABEL_MAP[pred_idx]
     color = COLOR_MAP[pred_idx]
 
+    # ── Resultado ─────────────────────────────────────────────────────────────
+    st.subheader("📈 Resultado")
     st.markdown(
         f"<div style='background-color:{color}22; border-left:6px solid {color}; "
-        f"padding:16px 20px; border-radius:8px; font-size:1.4rem; font-weight:700; color:{color}'>"
+        f"padding:16px 20px; border-radius:8px; font-size:1.6rem; font-weight:700; color:{color}'>"
         f"{label}</div>",
         unsafe_allow_html=True,
     )
+    st.markdown("")
 
-    st.markdown("#### Probabilidades por clase")
-    prob_df = pd.DataFrame({
-        "Clase": ["🔴 Alto Riesgo", "🟡 Riesgo Medio", "🟢 Bajo Riesgo"],
-        "Probabilidad": [f"{p*100:.1f}%" for p in probs],
-        "Valor": probs,
-    })
+    # ── Probabilidades ────────────────────────────────────────────────────────
+    st.markdown("#### 📊 Probabilidades detalladas")
+    clases = [
+        ("🔴 Alto Riesgo",  p_alto,  0),
+        ("🟡 Riesgo Medio", p_medio, 1),
+        ("🟢 Bajo Riesgo",  p_bajo,  2),
+    ]
+    for nombre, prob, idx in clases:
+        es_ganadora = pred_idx == idx
+        sufijo = " ◀ predicción" if es_ganadora else ""
+        peso   = "700" if es_ganadora else "400"
+        st.markdown(
+            f"<div style='margin-bottom:4px; font-weight:{peso}'>{nombre}{sufijo}</div>",
+            unsafe_allow_html=True,
+        )
+        st.progress(prob, text=f"{prob*100:.2f}%")
 
-    for _, r in prob_df.iterrows():
-        st.progress(float(r["Valor"]), text=f"{r['Clase']}  —  {r['Probabilidad']}")
+    with st.expander("🔢 Ver valores numéricos"):
+        tabla = pd.DataFrame({
+            "Clase":        ["🔴 Alto Riesgo", "🟡 Riesgo Medio", "🟢 Bajo Riesgo"],
+            "Probabilidad": [f"{p*100:.4f}%" for p in [p_alto, p_medio, p_bajo]],
+            "Valor raw":    [f"{p:.6f}"       for p in [p_alto, p_medio, p_bajo]],
+        })
+        st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+    # ── Recomendaciones ───────────────────────────────────────────────────────
+    st.markdown("#### 💡 Recomendaciones")
+    rec = RECOMENDACIONES[pred_idx]
+
+    st.markdown(
+        f"<div style='background-color:{rec['color']}22; border-left:6px solid {rec['color']}; "
+        f"padding:14px 18px; border-radius:8px; margin-bottom:14px'>"
+        f"<span style='font-size:1.1rem; font-weight:700; color:{rec['color']}'>"
+        f"{rec['icono']}  {rec['titulo']}</span></div>",
+        unsafe_allow_html=True,
+    )
+
+    for i, punto in enumerate(rec["puntos"], 1):
+        st.markdown(f"**{i}.** {punto}")
 
 st.divider()
 st.caption("Modelo: Red Neuronal (Keras) · Preprocesamiento: LabelEncoder → SelectKBest → PCA → MinMaxScaler")
